@@ -25,4 +25,4 @@ urlpatterns = [
     path('blog/',include('blog.urls')),
 ] + static(settings.MEDIA_URL, document_root = settings.MEDIA_ROOT)
 
-# static is used for saving the images 
+# static is used for saving the images
