@@ -1,0 +1,32 @@
+Master bot:
+
+Fetch Task Name
+1. Extract the task name of the bot - $System:AATaskName$
+
+Create log folder
+2. Create folder $@strRootFolder$\Logs if not present
+3. Create folder $@strRootFolder$\Logs\Reports if not present
+
+Initialize log path
+4. Assign value to str_Log_path - $@strRootFolder$\Logs\$System:Machine$_Process_Log.txt
+5. Assign value to str_Reports_Date, Process_date - System:Date MM_dd_yyyy MM/dd/yyyy
+
+6. Assign value to str_Reports_path - $@strRootFolder$\Logs\Reports\Daily_Reports_$str_Reports_Date$.csv
+7. Assign value to str_Full_Reports_Path - $@strRootFolder$\Logs\Reports\Daily_Reports.csv
+
+8. if file does not exist str_Reports_path then log - Processing Date,Entity,Period,Fiscal Year,Original JE File,Entity JE File,Status,Exception Reason,Email shared with
+9. if file does not exist str_Full_Reports_Path then log - Processing Date,Entity,Period,Fiscal Year,Original JE File,Entity JE File,Status,Exception Reason,Email shared with
+
+Create Log File when the Master Bot Task is Start
+10. Assign value to str_DateTime - System:Date MM/dd/yyyy hh:mm:ss
+11. Log to str_Log_Path - $str_DateTime$,$strTaskName$,Task Started
+
+12. Assign value to numCurrentTimeCheck - $System:Hour$
+13. Loop (numCurrentTimeCheck >= 0)
+	14. Open Application - C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE
+	15. If window Exist with title - (* - Outlook)(* will skip any character) Minimize it 
+	16. Delay - 2s
+	17. Task Bot Call - Bots\Gensler\Journal Entry Process\Config\Config
+		input - str_Log_Path
+		output - str_URL, str_Exception_XML
+	18. 
