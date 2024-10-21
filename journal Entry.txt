@@ -1,32 +1,83 @@
-Master bot:
+FMaster bot:
 
-Fetch Task Name
-1. Extract the task name of the bot - $System:AATaskName$
+Assign value to numCurrentTimeCheck - $System:Hour$
 
-Create log folder
-2. Create folder $@strRootFolder$\Logs if not present
-3. Create folder $@strRootFolder$\Logs\Reports if not present
+Loop - numCurrentTimeCheck >= 0
+	Fetch Task Name
+	1. Extract the task name of the bot - $System:AATaskName$
 
-Initialize log path
-4. Assign value to str_Log_path - $@strRootFolder$\Logs\$System:Machine$_Process_Log.txt
-5. Assign value to str_Reports_Date, Process_date - System:Date MM_dd_yyyy MM/dd/yyyy
+	Create log folder
+	2. Create folder $@strRootFolder$\Logs if not present
+	3. Create folder $@strRootFolder$\Logs\Reports if not present
 
-6. Assign value to str_Reports_path - $@strRootFolder$\Logs\Reports\Daily_Reports_$str_Reports_Date$.csv
-7. Assign value to str_Full_Reports_Path - $@strRootFolder$\Logs\Reports\Daily_Reports.csv
+	Initialize log path
+	4. Assign value to str_Log_path - $@strRootFolder$\Logs\$System:Machine$_Process_Log.txt
+	5. Assign value to str_Reports_Date, Process_date - System:Date MM_dd_yyyy MM/dd/yyyy
 
-8. if file does not exist str_Reports_path then log - Processing Date,Entity,Period,Fiscal Year,Original JE File,Entity JE File,Status,Exception Reason,Email shared with
-9. if file does not exist str_Full_Reports_Path then log - Processing Date,Entity,Period,Fiscal Year,Original JE File,Entity JE File,Status,Exception Reason,Email shared with
+	6. Assign value to str_Reports_path - $@strRootFolder$\Logs\Reports\Daily_Reports_$str_Reports_Date$.csv
+	7. Assign value to str_Full_Reports_Path - $@strRootFolder$\Logs\Reports\Daily_Reports.csv
 
-Create Log File when the Master Bot Task is Start
-10. Assign value to str_DateTime - System:Date MM/dd/yyyy hh:mm:ss
-11. Log to str_Log_Path - $str_DateTime$,$strTaskName$,Task Started
+	8. if file does not exist str_Reports_path then log - Processing Date,Entity,Period,Fiscal Year,Original JE File,Entity JE File,Status,Exception Reason,Email shared with
+	9. if file does not exist str_Full_Reports_Path then log - Processing Date,Entity,Period,Fiscal Year,Original JE File,Entity JE File,Status,Exception Reason,Email shared with
 
-12. Assign value to numCurrentTimeCheck - $System:Hour$
-13. Loop (numCurrentTimeCheck >= 0)
-	14. Open Application - C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE
-	15. If window Exist with title - (* - Outlook)(* will skip any character) Minimize it 
-	16. Delay - 2s
-	17. Task Bot Call - Bots\Gensler\Journal Entry Process\Config\Config
-		input - str_Log_Path
-		output - str_URL, str_Exception_XML
-	18. 
+	Create Log File when the Master Bot Task is Start
+	10. Assign value to str_DateTime - System:Date MM/dd/yyyy hh:mm:ss
+	11. Log to str_Log_Path - $str_DateTime$,$strTaskName$,Task Started
+
+		14. Open Application - C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE
+		15. If window Exist with title - (* - Outlook)(* will skip any character) Minimize it 
+		16. Delay - 2s
+		17. Bot Call - Bots\Gensler\Journal Entry Process\Config\Config
+			input - str_Log_Path
+			output - str_URL, str_Exception_XML
+		18. if str_Exception_XML is not empty
+			Call - Bots\Gensler\Journal Entry Process\Error_Handling\Exception_Handling
+				input - strOriginalExcelFileName, str_URL, str_Reports_Path, str_Log_Path, str_Full_Reports_Path, str_Exception_Xml
+				output - str_Exception_XML
+		19. Call - Bots\Gensler\Journal Entry Process\FM_Move files in to Progress
+			input - str_Log_Path, strRootFolder
+			output - str_Exception_XML, strUnprocessedFolderPath, strInProgressFolderPath
+		20. if str_Exception_XML is not empty
+			Call - Bots\Gensler\Journal Entry Process\Error_Handling\Exception_Handling
+				input - strOriginalExcelFileName, str_URL, str_Reports_Path, str_Log_Path, str_Full_Reports_Path, str_Exception_Xml
+				output - str_Exception_XML
+
+		21. Assign value to strFilePresent - Empty
+		22. Loop through all the file in the folder - $@strRootFolder$\In_Progress_Files using variable - dic_FilesInFolderInProgress
+			23. Assign value to strOriginalExcelFileName - $dic_FilesInFolderInProgress{name}$.xlsx
+			24. if file exists $@strRootFolder$/In_Progress_Files/$strOriginalExcelFileName$
+				25. Increment TotalOriginalExcel by 1
+				26. Call - Bots\Gensler\Journal Entry Process\FM_Create_InProgress_Processed_Exception_Folder
+					input - str_Log_Path, dic_FilesInFolderInProgress
+					output - strOriginalExcelFilePath, strJEExcelFilePath, strOriginalExcelFileName, str_JETextFile_Path, strMappingFilePath, strProcessedFolderPath, strExceptionFolderPath
+				27. Call - Bots\Gensler\Journal Entry Process\Excel_Create_Allocation_File
+					input - str_Full_Reports_Path, str_Log_Path, str_Reports_Path, str_URL, strJEExcelFilePath, str_JETextFile_Path, strMappingFilePath, strOriginalExcelFileName, strOriginalExcelFilePath
+					output - str_Exception_Xml, str_Date_Format, str_Info_Tab_EmailId
+				28. if str_Exception_XML is not empty
+					Call - Bots\Gensler\Journal Entry Process\Error_Handling\Exception_Handling
+						input - strOriginalExcelFileName, str_URL, str_Reports_Path, str_Log_Path, str_Full_Reports_Path, str_Exception_Xml
+						output - str_Exception_XML
+				29. Loop for each file in folder $str_JETextFile_Path$ using variable - dic_FilesInFolderJEfileTextFolder
+					30. Assign value to strTextFileName - $dic_FilesInFolderJEfileTextFolder{name}$
+					31. Call - Bots\Gensler\Journal Entry Process\Deltek_Upload_Entity_file
+						input - str_Date_Format, str_Info_Tab_EmailIdstr_JETextFile_Path, str_Log_Path, strFileName, strTextFileName
+						output - str_Exception_Xml, strEntityNo, strperiodYear, strperiodMonth, strMappedExcelFileName
+
+					32. if str_Exception_XML is not Empty
+						33. Assign TotalException += 1
+						34. FileProcessed - True
+						35. Call - Bots\Gensler\Journal Entry Process\Error_Handling\Exception_Handling
+						36. Loop Continue
+					37. Else
+						38. TotalProcessed += 1
+				
+				39. If FileProcessed = True
+						Email - Exception
+				40. Else
+						Email - FileComplete
+					
+				41. Call - Bots\Gensler\Journal Entry Process\FM_Move files in to Processed copy_New
+				42. 
+
+
+	
